@@ -46,5 +46,15 @@ agent = create_agent("openai:gpt-5.6-luna", tools=[bash], middleware=[AutoModeMi
 ```
 Note: the classifier sees recent messages as context, so judge/mocks must key on the proposed `tool_call`, not the whole state.
 
+## Evals: pick thresholds with data
+```bash
+python -m jev_harness.evals                     # offline heuristic (numbers are NOT about Jev)
+TYPESAFE_API_KEY=... python -m jev_harness.evals --json out.json   # real Jev
+```
+`evals/datasets.py` holds small labelled seed sets for 7 probability use cases (injection, PII, toxicity, needs-retrieval, escalate,
+task-done, code-review) and 7 categorical ones. For each probability use case it reports precision/recall/F1 at the default threshold,
+sweeps 0.05-0.95, and prints the best-F1 plateau plus every misclassified example. Offline scores are near-perfect only because the
+heuristic rules were written against these same seeds. Replace/extend the datasets with real examples (dozens per use case) first.
+
 ## Next steps
 Label real examples and tune thresholds per use case against the live API; swap the scripted planner in `harness.py` for an LLM.
