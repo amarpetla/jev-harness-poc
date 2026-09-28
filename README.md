@@ -30,9 +30,21 @@ pytest
 python examples/demo.py                      # offline heuristic backend
 pip install -e '.[jev]' && TYPESAFE_API_KEY=... python examples/demo.py   # real Jev
 ```
-The heuristic backend is a keyword stand-in, not a model. The real-Jev backend (`TypeSafeBackend`) follows the blog's
-`TypeSafeClassifier` example but is **untested against the live API** (the `Choice` field names in particular are unverified).
-Tools are simulated; nothing dangerous is executed.
+## What is verified
+- `TypeSafeBackend` was checked against the installed `langchain-typesafe` types (`Choice`/`Score` use `criteria`; `Score` returns an
+  expected value in [0, N-1], normalised here to [0, 1]) and is tested through a mocked TypeSafe HTTP API.
+- `tests/test_langchain_integration.py` runs a real `create_agent` with the library's `AutoModeMiddleware` (fake chat model + mocked API):
+  the dangerous tool call is blocked and never executed.
+- **Not verified:** behaviour/accuracy against the live Jev API (no key was available). Offline heuristic outputs are not representative.
+- Tools are simulated; nothing dangerous is executed.
+
+## Using the official middleware
+```python
+from langchain.agents import create_agent
+from langchain_typesafe.experimental.middleware import AutoModeMiddleware, ModelRouterMiddleware, ModelChoice
+agent = create_agent("openai:gpt-5.6-luna", tools=[bash], middleware=[AutoModeMiddleware(tools=["bash"])])
+```
+Note: the classifier sees recent messages as context, so judge/mocks must key on the proposed `tool_call`, not the whole state.
 
 ## Next steps
-Score questions, LangChain `create_agent` middleware integration (`langchain_typesafe.experimental.middleware`), real LLM planner.
+Label real examples and tune thresholds per use case against the live API; swap the scripted planner in `harness.py` for an LLM.

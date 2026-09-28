@@ -109,34 +109,32 @@ class HeuristicClassifier:
 
 
 class TypeSafeBackend:
-    def __init__(self) -> None:
-        from langchain_typesafe import Noul as TNoul, TypeSafeClassifier  # lazy
-        self._c = TypeSafeClassifier()
-        self._TNoul = TNoul
+    """Real Jev via langchain-typesafe (types verified against the installed package).
+
+    Choice/Score take `criteria` (dict / ordered list). Score answers are an expected value
+    in [0, N-1]; we normalise to [0, 1] to match the rest of the harness."""
+
+    def __init__(self, classifier=None) -> None:
+        from langchain_typesafe import TypeSafeClassifier  # lazy
+        self._c = classifier or TypeSafeClassifier()
 
     def classify(self, state, questions):
-        try:
-            from langchain_typesafe import Choice as TChoice
-        except ImportError:  # pragma: no cover
-            TChoice = None
+        from langchain_typesafe import Choice as TChoice, Noul as TNoul, Score as TScore
         qs = {}
         for name, q in questions.items():
             if isinstance(q, Noul):
-                qs[name] = self._TNoul(instructions=q.instructions)
+                qs[name] = TNoul(instructions=q.instructions)
             elif isinstance(q, Score):
-                from langchain_typesafe import Score as TScore  # unverified field names
-                qs[name] = TScore(instructions=q.instructions, levels=list(q.levels))
+                qs[name] = TScore(instructions=q.instructions, criteria=list(q.levels))
             else:
-                if TChoice is None:
-                    raise RuntimeError("installed langchain-typesafe lacks Choice")
-                qs[name] = TChoice(instructions=q.instructions, options=dict(q.options))
+                qs[name] = TChoice(instructions=q.instructions, criteria=dict(q.options))
         r = self._c.invoke({"state": state, "questions": qs})
         out = Result()
         for name, q in questions.items():
             if isinstance(q, Noul):
                 out.nouls[name] = r.nouls[name].noul
             elif isinstance(q, Score):
-                out.scores[name] = r.scores[name].score  # unverified attribute name
+                out.scores[name] = r.scores[name].score / (len(q.levels) - 1)
             else:
                 out.choices[name] = dict(r.choices[name].probabilities)
         return out
