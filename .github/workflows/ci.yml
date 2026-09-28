@@ -1,0 +1,48 @@
+name: ci
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install (with langchain extra so the integration tests run)
+        run: pip install -e ".[dev,langchain]"
+      - name: Tests (mocked TypeSafe API; no secrets needed)
+        run: python -m pytest -q -W ignore
+      - name: Offline eval smoke run (heuristic backend; numbers are not about Jev)
+        run: python -m jev_harness.evals --json eval-offline.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eval-offline-py${{ matrix.python-version }}
+          path: eval-offline.json
+
+  # Manual, optional: real Jev eval. Needs a TYPESAFE_API_KEY repo secret; skipped otherwise.
+  eval-live:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[langchain]"
+      - run: python -m jev_harness.evals --json eval-live.json
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eval-live
+          path: eval-live.json

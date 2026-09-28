@@ -51,10 +51,14 @@ Note: the classifier sees recent messages as context, so judge/mocks must key on
 python -m jev_harness.evals                     # offline heuristic (numbers are NOT about Jev)
 TYPESAFE_API_KEY=... python -m jev_harness.evals --json out.json   # real Jev
 ```
-`evals/datasets.py` holds small labelled seed sets for 7 probability use cases (injection, PII, toxicity, needs-retrieval, escalate,
+`evals/datasets.py` holds labelled seed sets (~160 examples, incl. paraphrases and hard negatives) for 7 probability use cases (injection, PII, toxicity, needs-retrieval, escalate,
 task-done, code-review) and 7 categorical ones. For each probability use case it reports precision/recall/F1 at the default threshold,
 sweeps 0.05-0.95, and prints the best-F1 plateau plus every misclassified example. Offline scores are near-perfect only because the
 heuristic rules were written against these same seeds. Replace/extend the datasets with real examples (dozens per use case) first.
+
+## CI
+`.github/workflows/ci.yml` runs the tests on Python 3.10-3.12 (mocked API, no secrets) plus an offline eval smoke run.
+A manual `workflow_dispatch` job runs the eval against real Jev if you add a `TYPESAFE_API_KEY` repo secret.
 
 ## Next steps
 Label real examples and tune thresholds per use case against the live API; swap the scripted planner in `harness.py` for an LLM.
